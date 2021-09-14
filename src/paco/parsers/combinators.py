@@ -49,6 +49,9 @@ class Parser(object):
     def inside(self, sur):
         return sur >> self << sur
 
+    def then(self, other):
+        return self << other
+
     def ignore(self):
         def _ignore(result : Node) -> Node:
             result.ignore()
