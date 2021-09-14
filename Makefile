@@ -17,7 +17,15 @@ new-venv:
 	( \
 	virtualenv ./venv; \
 	source ./venv/bin/activate; \
-	python3 -m pip install ./dist/${PNAME}-*.tar.gz; \
+	python3 -m pip install -e ./dist/${PNAME}-*.tar.gz; \
+	deactivate; \
+	)
+
+evenv:
+	( \
+	virtualenv ./venv; \
+	source ./venv/bin/activate; \
+	python3 -m pip install -e .; \
 	deactivate; \
 	)
 
