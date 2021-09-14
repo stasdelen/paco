@@ -146,10 +146,12 @@ class KeepRight(Parser):
         return self
 
     def run(self, state : ParserState) -> Node:
+        start = state.pos
         for p in self.parsers:
             result = p.run(state)
             if result.is_an(Error) : return result
             state.pos = result.end
+        result.start = start
         return result
 
 class KeepLeft(Parser):
