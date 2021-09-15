@@ -1,17 +1,36 @@
-from ..tree.nodes import (Node, Parsed, Error)
-from .parser_state import ParserState
 import re
 from typing import Any
+from dataclasses import dataclass
+
+@dataclass
+class Parsed:
+    type : str
+    start : int
+    end : int
+    data : Any
+
+class Target:
+    def __init__(self, text : str, pos = 0) -> None:
+        self.text = text
+        self.pos = pos
+
+    def inBound(self) -> bool:
+        return (len(self.text) > self.pos)
+    
+    def __getitem__(self, index):
+        return self.text[index]
+
 
 class Parser(object):
+
 
     def __init__(self) -> None:
         self.name = str()
     
-    def set_name(self, name : str) -> None:
+    def setName(self, name : str) -> None:
         self.name = name
 
-    def run(self, state : ParserState) -> Node:
+    def run(self, tar : Target) -> Parsed:
         raise NotImplementedError
     
     def __add__(self, other):
@@ -26,18 +45,23 @@ class Parser(object):
     def __lshift__(self, other):
         return KeepLeft(self, other)
 
-    def __call__(self, data : str, idx = 0) -> Node:
-        state = ParserState(idx, data)
+    def __call__(self, data : str, idx = 0) -> Parsed:
+        tar = Target(data, idx)
 
-        parsed = self.run(state)
-        if parsed.is_an(Error):
-            parsed.log_error()
-        return parsed
+        try:
+            parsed = self.run(tar)
+            return parsed
+        except ParseError as e:
+            print(e.msg)
+            return None
+    
+    def __str__(self) -> str:
+        return self.name
     
     def map(self, func):
         return Map(self, func)
     
-    def er_map(self, func):
+    def errmap(self, func):
         return ErrMap(self, func)
 
     def sepby(self, sep):
@@ -51,89 +75,89 @@ class Parser(object):
 
     def then(self, other):
         return self << other
-
-    def ignore(self):
-        def _ignore(result : Node) -> Node:
-            result.ignore()
-            return result
-        return Map(self, _ignore)
     
     def rename(self, name : str):
-        def _rename(result : Node) -> Node:
-            result.ntype = name
-            return result
-        return Map(self, _rename)
+        self.name = name
+        return self
 
-#Atomic Parsers : They do not manipulate the given input state.
+class ParseError(Exception):
+    def __init__(self, start : int, end : int, msg : str, parser : Parser) -> None:
+        self.start = start
+        self.end = end
+        self.msg = msg
+        self.parser = parser
+
+    def __str__(self):
+        return self.msg
+
+#Atomic Parsers : They do not manipulate the given input tar.
 
 class Char(Parser):
     def __init__(self, char : str) -> None:
         super().__init__()
+        self.name = 'char({})'.format(char)
         self.char = char
     
-    def run(self, state : ParserState) -> Node:
-        if (state.in_bound()) and (state.target[state.pos] == self.char):
-            return Parsed(state.pos, state.pos + 1, self.char)
+    def run(self, tar : Target) -> Parsed:
+        if (tar.inBound()) and (tar[tar.pos] == self.char):
+            return Parsed(self.name, tar.pos, tar.pos + 1, self.char)
         
-        got = state.target[state.pos] if state.in_bound() else "EOF"
+        got = tar[tar.pos] if tar.inBound() else "EOF"
         msg = f"Excpected '{self.char}' but got '{got}'"
-        return Error(state.pos, state.pos+1, msg, self)
+        raise ParseError(tar.pos, tar.pos + 1, msg, self)
 
 class Literal(Parser):
 
     def __init__(self, literal : str) -> None:
         super().__init__()
+        self.name = 'lit({})'.format(literal)
         self.literal = literal
         self.length = len(literal)
     
-    def run(self, state : ParserState) -> Node:
-        for i in range(self.length):
-            if (state.in_bound(ind=state.pos+i)) and \
-                (self.literal[i] != state.target[state.pos + i]):
-                
-                got = state.target[state.pos:state.pos+self.length] \
-                    if state.in_bound(state.pos+self.length) else "EOF"
+    def run(self, tar : Target) -> Parsed:
+        if tar.inBound(tar.pos + self.length):
+            for i in range(self.length):
+                if self.literal[i] != tar[tar.pos + i]:
+                    msg = f"Tried to match '{self.literal}' but got {tar[tar.pos:tar.pos+self.length]}"
+                    raise ParseError(tar.pos, tar.pos + self.length, msg, self)
 
-                msg = f"Tried to match '{self.literal}' but got {got}"
-                return Error(state.pos, state.pos + self.length, msg, self)
-        return Parsed(state.pos, state.pos + self.length, self.literal)
+            return Parsed(self.name, tar.pos, tar.pos + self.length, self.literal)
+        msg = f"Tried to match '{self.literal}' but got EOF"
+        raise ParseError(tar.pos, tar.pos + self.length, msg, self)
         
 class Regex(Parser):
 
     def __init__(self, rule : str) -> None:
         super().__init__()
+        self.name = 'reg({})'.format(rule)
         self.rule = re.compile(rule)
     
-    def run(self, state : ParserState) -> Node:
-        m = self.rule.match(state.text[state.pos:])
+    def run(self, tar : Target) -> Parsed:
+        m = self.rule.match(tar[tar.pos:])
         if m is None:
             msg = f"Couldn't match the rule: {self.rule}"
-            return Error(state.pos, state.pos, msg, self)
-        return Parsed(state.pos, state.pos + m.end(), m.group())
-
-#Combinators/Manipulators
+            raise ParseError(tar.pos, tar.pos, msg, self)
+        return Parsed(self.name, tar.pos, tar.pos + m.end(), m.group())
 
 class Sequence(Parser):
 
     def __init__(self, *parsers) -> None:
         super().__init__()
+        self.name = 'seq()'
         self.parsers = list(parsers)
 
     def __add__(self, other):
         self.parsers.append(other)
         return self
 
-    def run(self, state : ParserState) -> Node:
-        children = list()
+    def run(self, tar : Target) -> Parsed:
+        data = list()
         for p in self.parsers:
-            result = p.run(state)
-            if result.is_an(Error) : return result
-            state.pos = result.end
-            children.append(result)
+            result = p.run(tar)
+            tar.pos = result.end
+            data.append(result)
             
-        parsed = Parsed(children[0].start, children[-1].end)
-        parsed.add_children(*children)
-        return parsed
+        return Parsed(self.name, data[0].start, data[-1].end, data) 
 
 class KeepRight(Parser):
 
@@ -145,12 +169,11 @@ class KeepRight(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, state : ParserState) -> Node:
-        start = state.pos
+    def run(self, tar : Target) -> Parsed:
+        start = tar.pos
         for p in self.parsers:
-            result = p.run(state)
-            if result.is_an(Error) : return result
-            state.pos = result.end
+            result = p.run(tar)
+            tar.pos = result.end
         result.start = start
         return result
 
@@ -164,15 +187,13 @@ class KeepLeft(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, state : ParserState) -> Node:
-        lresult = self.parsers[0].run(state)
-        if lresult.is_an(Error) : return lresult
-        state.pos = lresult.end
+    def run(self, tar : Target) -> Parsed:
+        lresult = self.parsers[0].run(tar)
+        tar.pos = lresult.end
         for p in self.parsers[1:]:
-            result = p.run(state)
-            if result.is_an(Error) : return result
-            state.pos = result.end
-        lresult.end = result.end
+            result = p.run(tar)
+            tar.pos = result.end
+        lresult.end = tar.pos
         return lresult
 
 class Choice(Parser):
@@ -180,66 +201,67 @@ class Choice(Parser):
     def __init__(self, *parsers) -> None:
         super().__init__()
         self.parsers = list(parsers)
+        self.name = 'choice'
 
     def __or__(self, other):
         self.parsers.append(other)
         return self
 
-    def run(self, state: ParserState) -> Node:
-        last_pos = state.pos
+    def run(self, tar: Target) -> Parsed:
+        last_pos = tar.pos
         for p in self.parsers:
-            result = p.run(state)
-            if not result.is_an(Error):
-                state.pos = result.end
-                return result
-            state.pos = last_pos
+            try:
+                result = p.run(tar)
+            except:
+                tar.pos = last_pos
+                continue
+            tar.pos = result.end
+            return result
+            
         msg = "No choice was left"
-        return Error(state.pos, state.pos, msg, self)
+        return ParseError(tar.pos, tar.pos, msg, self)
 
 class Many(Parser):
 
     def __init__(self, parser : Parser) -> None:
         super().__init__()
+        self.name = 'many({})'.format(parser)
         self.parser = parser
 
-    def run(self, state : ParserState) -> Node:
-        results = list()
-        result = self.parser.run(state)
-        if result.is_an(Error) : return result
-        while not result.is_an(Error):
-            state.pos = result.end
-            results.append(result)
-            result = self.parser.run(state)
-        many_result = Parsed(results[0].start, result.end)
-        many_result.add_children(*results)
-        state.pos = result.end
-        return many_result
+    def run(self, tar : Target) -> Parsed:
+        data = list()
+        while True:
+            try:
+                result = self.parser.run(tar)
+            except:
+                break
+            data.append(result)
+            tar.pos = result.end
+        return Parsed(self.name, data[0].start, data[-1].end, data)
 
 class SepBy(Parser):
 
     def __init__(self, tar : Parser, sep : Parser) -> None:
         super().__init__()
+        self.name = 'sepby({},{})'.format(tar,sep)
         self.tar = tar
         self.sep = sep
 
-    def run(self, state : ParserState) -> Node:
-        result = self.tar.run(state)
-        results = [result]
-        if result.is_an(Error) : return result
-        state.pos = result.end
+    def run(self, tar : Target) -> Parsed:
+        result = self.tar.run(tar)
+        data = [result]
+        tar.pos = result.end
         while True:
-            sepres = self.sep.run(state)
-            if sepres.is_an(Error):
-                state.pos = sepres.start
+            try:
+                sepres = self.sep.run(tar)
+            except:
                 break
-            state.pos = sepres.end
-            result = self.tar.run(state)
-            if result.is_an(Error) : return result
-            results.append(result)
-            state.pos = result.end
-        sepb_result = Parsed(results[0].start, result.end)
-        sepb_result.add_children(*results)
-        return sepb_result
+            tar.pos = sepres.end
+            result = self.tar.run(tar)
+            data.append(result)
+            tar.pos = result.end
+            
+        return Parsed(self.name, data[0].start,data[-1].end, data)
 
 class Lazy(Parser):
 
@@ -247,17 +269,17 @@ class Lazy(Parser):
         super().__init__()
         self._parser = None
     
-    def run(self, state : ParserState) -> Node:
+    def run(self, tar : Target) -> Parsed:
         if self._parser == None:
-            return Error(state.pos, state.pos, "Lazy Parser was not set!", self)
-        return self.parser.run(state)
+            raise ParseError(tar.pos, tar.pos, "Lazy Parser was not set!", self)
+        return self._parser.run(tar)
 
     @property
-    def parser(self):
+    def p(self):
         return self._parser
     
-    @parser.setter
-    def parser(self, value):
+    @p.setter
+    def p(self, value):
         self._parser = value
         
 class Map(Parser):
@@ -271,11 +293,10 @@ class Map(Parser):
         self.funcs.append(func)
         return self
 
-    def run(self, state : ParserState) -> Node:
-        result = self.parser.run(state)
-        if result.is_an(Error) : return result
+    def run(self, tar : Target) -> Parsed:
+        result = self.parser.run(tar)
         for f in self.funcs:
-            result = f(result)
+            result.data = f(result.data)
         return result
 
 class ErrMap(Parser):
@@ -285,8 +306,9 @@ class ErrMap(Parser):
         self.parser = parser
         self.func = func
 
-    def run(self, state : ParserState) -> Node:
-        result = self.parser.run(state)
-        if result.is_an(Error):
-            result = self.func(result)
+    def run(self, tar : Target) -> Parsed:
+        try:
+            result = self.parser.run(tar)
+        except ParseError as e:
+            result = self.func(e)
         return result
