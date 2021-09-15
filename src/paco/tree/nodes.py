@@ -1,6 +1,4 @@
 from typing import Any
-from json import dumps
-from json.encoder import JSONEncoder
 
 class Node(object):
 
@@ -48,13 +46,17 @@ class Node(object):
     def data(self, to_set):
         self._data = to_set
 
-    def __str__(self) -> str:
-        return dumps(self, indent=4, cls=NodeEncoder)
-
-class NodeEncoder(JSONEncoder):
-    def default(self, node : Node ):
-        return node.__dict__
-
+    def __str__(self, level=0) -> str:
+        indent = level*' '
+        str_type = indent + 'type : ' + self.ntype + ',\n'
+        ret = indent + '{\n' + str_type
+        if self.data is not None:
+            ret += indent + 'data : ' + str(self.data) + ',\n'
+        if len(self.children) != 0:
+            ret += indent + 'children :\n'
+            for child in self.children:
+                ret += child.__str__(level + 4) + ',\n'
+        return ret + indent + '}'
     
 class Parsed(Node):
 
@@ -65,12 +67,20 @@ class Parsed(Node):
         self.end = end
         self._data = data
     
-    def __str__(self) -> str:
-        return dumps(self, indent=4, cls=ParsedEncoder)
+    def __str__(self, level=0) -> str:
+        indent = level*' '
+        str_start = indent + 'start : ' + str(self.start) + ',\n'
+        str_end = indent + 'end : ' + str(self.end) + ',\n'
+        str_type = indent + 'type : ' + self.ntype + ',\n'
+        ret = indent + '{\n' + str_type + str_start + str_end
+        if self.data is not None:
+            ret += indent + 'data : ' + str(self.data) + ',\n'
+        if len(self.children) != 0:
+            ret += indent + 'children :\n'
+            for child in self.children:
+                ret += child.__str__(level + 4) + ',\n'
+        return ret + indent + '}'
 
-class ParsedEncoder(JSONEncoder):
-    def default(self, node : Parsed ):
-        return {"type" : node.ntype, "start" : node.start, "end" : node.end, "data" : node._data, "children" : node.children}
 
 class Error(Node):
 
@@ -94,9 +104,11 @@ class Error(Node):
     def get_parser(self):
         return self.parser    
     
-    def __str__(self) -> str:
-        return dumps(self, indent=4, cls=ErrorEncoder)
-
-class ErrorEncoder(JSONEncoder):
-    def default(self, node : Error ):
-        return {"type" : node.ntype, "start" : node.start, "end" : node.end, "error" : node.er_str}
+    def __str__(self, level=0) -> str:
+        indent = level*' '
+        str_start = indent + 'start : ' + str(self.start) + ',\n'
+        str_end = indent + 'end : ' + str(self.end) + ',\n'
+        str_type = indent + 'type : ' + self.ntype + ',\n'
+        str_err = indent + 'error : ' + self.er_str + ',\n'
+        ret = indent + '{\n' + str_type + str_start + str_end + str_err
+        return ret + indent + '}'
