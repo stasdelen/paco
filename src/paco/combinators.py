@@ -52,8 +52,7 @@ class Parser(object):
             parsed = self.run(tar)
             return parsed
         except ParseError as e:
-            print(e.msg)
-            return None
+            return e
     
     def __str__(self) -> str:
         return self.name
@@ -89,8 +88,6 @@ class ParseError(Exception):
 
     def __str__(self):
         return self.msg
-
-#Atomic Parsers : They do not manipulate the given input tar.
 
 class Char(Parser):
     def __init__(self, char : str) -> None:
@@ -143,7 +140,7 @@ class Sequence(Parser):
 
     def __init__(self, *parsers) -> None:
         super().__init__()
-        self.name = 'seq()'
+        self.name = 'sequence()'
         self.parsers = list(parsers)
 
     def __add__(self, other):
@@ -201,7 +198,6 @@ class Choice(Parser):
     def __init__(self, *parsers) -> None:
         super().__init__()
         self.parsers = list(parsers)
-        self.name = 'choice'
 
     def __or__(self, other):
         self.parsers.append(other)
@@ -296,7 +292,7 @@ class Map(Parser):
     def run(self, tar : Target) -> Parsed:
         result = self.parser.run(tar)
         for f in self.funcs:
-            result.data = f(result.data)
+            result = f(result)
         return result
 
 class ErrMap(Parser):
