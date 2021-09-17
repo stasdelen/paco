@@ -1,6 +1,5 @@
 import re
-from typing import Any, NamedTuple
-from dataclasses import dataclass
+from typing import Any
 
 
 class Target:
