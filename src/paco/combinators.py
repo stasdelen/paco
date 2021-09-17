@@ -87,7 +87,7 @@ class Char(Parser):
         if (tar.inBound(pos)) and (tar[pos] == self.char):
             return (pos + 1, self.char)
         
-        got = tar[pos] if tar.inBound() else "EOF"
+        got = tar[pos] if tar.inBound(pos) else "EOF"
         msg = f"Excpected '{self.char}' but got '{got}'"
         raise ParseError(pos, pos + 1, msg, self)
 
@@ -100,10 +100,10 @@ class Literal(Parser):
         self.length = len(literal)
     
     def run(self, pos : int, tar : Target):
-        if tar.inBound(pos + self.length):
-            if tar.text.startswith(self.literal,pos):
-                    return (pos + self.length, self.literal)
-            msg = f"Tried to match '{self.literal}' but got {tar[pos:pos+self.length]}"
+        if tar.text.startswith(self.literal,pos):
+            return (pos + self.length, self.literal)
+        if tar.inBound(pos + self.length-1 ):
+            msg = f"Tried to match '{self.literal}' but got '{tar[pos:pos+self.length]}'"
             raise ParseError(pos, pos + self.length, msg, self)
         msg = f"Tried to match '{self.literal}' but got EOF"
         raise ParseError(pos, pos + self.length, msg, self)
