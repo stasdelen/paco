@@ -17,10 +17,7 @@ class Parser(object):
 
 
     def __init__(self) -> None:
-        self.name = str()
-    
-    def setName(self, name : str) -> None:
-        self.name = name
+        self.name = 'parser()'
 
     def run(self, pos : int, tar : Target):
         raise NotImplementedError
@@ -41,8 +38,7 @@ class Parser(object):
         tar = Target(data)
 
         try:
-            parsed = self.run(idx, tar)
-            return parsed
+            return self.run(idx, tar)
         except ParseError as e:
             return e
     
@@ -84,7 +80,7 @@ class ParseError(Exception):
 class Char(Parser):
     def __init__(self, char : str) -> None:
         super().__init__()
-        self.name = 'char({})'.format(char)
+        self.name = 'char(\'{}\')'.format(char)
         self.char = char
     
     def run(self, pos : int, tar : Target):
@@ -99,7 +95,7 @@ class Literal(Parser):
 
     def __init__(self, literal : str) -> None:
         super().__init__()
-        self.name = 'lit({})'.format(literal)
+        self.name = 'lit(\'{}\')'.format(literal)
         self.literal = literal
         self.length = len(literal)
     
@@ -116,7 +112,7 @@ class Regex(Parser):
 
     def __init__(self, rule : str) -> None:
         super().__init__()
-        self.name = 'reg({})'.format(rule)
+        self.name = 'reg(r\'{}\')'.format(rule)
         self.rule = re.compile(rule)
     
     def run(self, pos : int, tar : Target):
@@ -130,7 +126,6 @@ class Sequence(Parser):
 
     def __init__(self, *parsers) -> None:
         super().__init__()
-        self.name = 'sequence()'
         self.parsers = list(parsers)
 
     def __add__(self, other):
@@ -199,7 +194,6 @@ class Many(Parser):
 
     def __init__(self, parser : Parser) -> None:
         super().__init__()
-        self.name = 'many({})'.format(parser)
         self.parser = parser
 
     def run(self, pos : int, tar : Target):
@@ -216,7 +210,6 @@ class SepBy(Parser):
 
     def __init__(self, tar : Parser, sep : Parser) -> None:
         super().__init__()
-        self.name = 'sepby({},{})'.format(tar,sep)
         self.tar = tar
         self.sep = sep
 
