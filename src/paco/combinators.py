@@ -2,12 +2,6 @@ import re
 from typing import Any, NamedTuple
 from dataclasses import dataclass
 
-@dataclass
-class Parsed:
-    type : str
-    start : int
-    end : int
-    data : Any
 
 class Target:
     def __init__(self, text : str) -> None:
@@ -29,7 +23,7 @@ class Parser(object):
     def setName(self, name : str) -> None:
         self.name = name
 
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         raise NotImplementedError
     
     def __add__(self, other):
@@ -44,7 +38,7 @@ class Parser(object):
     def __lshift__(self, other):
         return KeepLeft(self, other)
 
-    def __call__(self, data : str, idx = 0) -> Parsed:
+    def __call__(self, data : str, idx = 0):
         tar = Target(data)
 
         try:
@@ -94,7 +88,7 @@ class Char(Parser):
         self.name = 'char({})'.format(char)
         self.char = char
     
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         if (tar.inBound(pos)) and (tar[pos] == self.char):
             return (pos + 1, self.char)
         
@@ -110,7 +104,7 @@ class Literal(Parser):
         self.literal = literal
         self.length = len(literal)
     
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         if tar.inBound(pos + self.length):
             if tar.text.startswith(self.literal,pos):
                     return (pos + self.length, self.literal)
@@ -126,7 +120,7 @@ class Regex(Parser):
         self.name = 'reg({})'.format(rule)
         self.rule = re.compile(rule)
     
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         m = self.rule.match(tar[pos:])
         if m is None:
             msg = f"Couldn't match the rule: {self.rule}"
@@ -144,7 +138,7 @@ class Sequence(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         data = list()
         for p in self.parsers:
             (pos, res) = p.run(pos, tar)
@@ -161,7 +155,7 @@ class KeepRight(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         for p in self.parsers:
             (pos, res) = p.run(pos, tar)
         return (pos, res)
@@ -176,7 +170,7 @@ class KeepLeft(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         (pos, res) = self.parsers[0].run(pos, tar)
         for p in self.parsers[1:]:
             (pos, _) = p.run(pos, tar)
@@ -192,7 +186,7 @@ class Choice(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, pos : int, tar: Target) -> Parsed:
+    def run(self, pos : int, tar: Target):
         for p in self.parsers:
             try:
                 return p.run(pos, tar)
@@ -209,7 +203,7 @@ class Many(Parser):
         self.name = 'many({})'.format(parser)
         self.parser = parser
 
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         data = list()
         while True:
             try:
@@ -227,7 +221,7 @@ class SepBy(Parser):
         self.tar = tar
         self.sep = sep
 
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         (pos, res) = self.tar.run(pos, tar)
         data = [res]
         while True:
@@ -246,7 +240,7 @@ class Lazy(Parser):
         super().__init__()
         self._parser = None
     
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         if not self._parser :
             raise ParseError(pos, pos, "Lazy Parser was not set!", self)
         return self._parser.run(pos, tar)
@@ -270,7 +264,7 @@ class Map(Parser):
         self.funcs.append(func)
         return self
 
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         (pos, res) = self.parser.run(pos, tar)
         for f in self.funcs:
             res = f(res)
@@ -283,7 +277,7 @@ class ErrMap(Parser):
         self.parser = parser
         self.func = func
 
-    def run(self, pos : int, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         try:
             result = self.parser.run(pos, tar)
         except ParseError as e:
