@@ -1,5 +1,5 @@
 import unittest
-from paco.combinators import (Char, ParseError)
+from paco.combinators import Char
 
 class TestCharParser(unittest.TestCase):
 
