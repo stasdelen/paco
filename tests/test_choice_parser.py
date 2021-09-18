@@ -1,7 +1,7 @@
 import unittest
 from paco.combinators import (Char, Literal, Regex, Choice)
 
-class TestKeepRightParser(unittest.TestCase):
+class TestChoiceParser(unittest.TestCase):
 
     def setUp(self):
         self.hello = Literal('hello')

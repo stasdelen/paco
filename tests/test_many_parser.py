@@ -1,7 +1,7 @@
 import unittest
 from paco.combinators import (Char, Regex, Many)
 
-class TestKeepRightParser(unittest.TestCase):
+class TestManyParser(unittest.TestCase):
 
     def setUp(self):
         self.integer = Regex(r'[1-9][0-9]*')
