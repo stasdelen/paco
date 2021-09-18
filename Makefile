@@ -17,11 +17,11 @@ new-venv:
 	( \
 	virtualenv ./venv; \
 	source ./venv/bin/activate; \
-	python3 -m pip install -e ./dist/${PNAME}-*.tar.gz; \
+	python3 -m pip install ./dist/${PNAME}-*.tar.gz; \
 	deactivate; \
 	)
 
-evenv:
+new-evenv:
 	( \
 	virtualenv ./venv; \
 	source ./venv/bin/activate; \
@@ -37,11 +37,13 @@ help:
 	@echo "        To clean the files with the extension pyc."
 	@echo "--> build:"
 	@echo "        Use this to build the package."
-	@echo "--> clean-build:"
+	@echo "--> clean:"
 	@echo "        Use htis to clean build files."
 	@echo "--> test:"
 	@echo "        To simply make test with tox."
 	@echo "--> new-venv:"
+	@echo "        Creates a new venv with the editable build."
+	@echo "--> new-evenv:"
 	@echo "        Creates a new venv with the current build."
 	@echo "--> clean-venv:"
 	@echo "        Cleans the virtual env. files."
