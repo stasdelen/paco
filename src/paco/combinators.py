@@ -188,7 +188,7 @@ class Choice(Parser):
                 continue
             
         msg = "No choice was left"
-        return ParseError(pos, pos, msg, self)
+        raise ParseError(pos, pos, msg, self)
 
 class Many(Parser):
 
