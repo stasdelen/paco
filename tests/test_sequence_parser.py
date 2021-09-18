@@ -1,7 +1,7 @@
 import unittest
 from paco.combinators import (Char, Literal, Regex, Sequence)
 
-class TestCharParser(unittest.TestCase):
+class TestSequenceParser(unittest.TestCase):
 
     def setUp(self):
         self.hello = Literal('hello')
