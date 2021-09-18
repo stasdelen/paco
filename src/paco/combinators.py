@@ -1,21 +1,13 @@
 import re
 from typing import Any
-from dataclasses import dataclass
 
-@dataclass
-class Parsed:
-    type : str
-    start : int
-    end : int
-    data : Any
 
 class Target:
-    def __init__(self, text : str, pos = 0) -> None:
+    def __init__(self, text : str) -> None:
         self.text = text
-        self.pos = pos
 
-    def inBound(self) -> bool:
-        return (len(self.text) > self.pos)
+    def inBound(self, pos : int) -> bool:
+        return (len(self.text) > pos)
     
     def __getitem__(self, index):
         return self.text[index]
@@ -25,12 +17,9 @@ class Parser(object):
 
 
     def __init__(self) -> None:
-        self.name = str()
-    
-    def setName(self, name : str) -> None:
-        self.name = name
+        self.name = 'parser()'
 
-    def run(self, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         raise NotImplementedError
     
     def __add__(self, other):
@@ -45,12 +34,11 @@ class Parser(object):
     def __lshift__(self, other):
         return KeepLeft(self, other)
 
-    def __call__(self, data : str, idx = 0) -> Parsed:
-        tar = Target(data, idx)
+    def __call__(self, data : str, idx = 0):
+        tar = Target(data)
 
         try:
-            parsed = self.run(tar)
-            return parsed
+            return self.run(idx, tar)
         except ParseError as e:
             return e
     
@@ -92,69 +80,64 @@ class ParseError(Exception):
 class Char(Parser):
     def __init__(self, char : str) -> None:
         super().__init__()
-        self.name = 'char({})'.format(char)
+        self.name = 'char(\'{}\')'.format(char)
         self.char = char
     
-    def run(self, tar : Target) -> Parsed:
-        if (tar.inBound()) and (tar[tar.pos] == self.char):
-            return Parsed(self.name, tar.pos, tar.pos + 1, self.char)
+    def run(self, pos : int, tar : Target):
+        if (tar.inBound(pos)) and (tar[pos] == self.char):
+            return (pos + 1, self.char)
         
-        got = tar[tar.pos] if tar.inBound() else "EOF"
+        got = tar[pos] if tar.inBound(pos) else "EOF"
         msg = f"Excpected '{self.char}' but got '{got}'"
-        raise ParseError(tar.pos, tar.pos + 1, msg, self)
+        raise ParseError(pos, pos + 1, msg, self)
 
 class Literal(Parser):
 
     def __init__(self, literal : str) -> None:
         super().__init__()
-        self.name = 'lit({})'.format(literal)
+        self.name = 'lit(\'{}\')'.format(literal)
         self.literal = literal
         self.length = len(literal)
     
-    def run(self, tar : Target) -> Parsed:
-        if tar.inBound(tar.pos + self.length):
-            for i in range(self.length):
-                if self.literal[i] != tar[tar.pos + i]:
-                    msg = f"Tried to match '{self.literal}' but got {tar[tar.pos:tar.pos+self.length]}"
-                    raise ParseError(tar.pos, tar.pos + self.length, msg, self)
-
-            return Parsed(self.name, tar.pos, tar.pos + self.length, self.literal)
+    def run(self, pos : int, tar : Target):
+        if tar.text.startswith(self.literal,pos):
+            return (pos + self.length, self.literal)
+        if tar.inBound(pos + self.length-1 ):
+            msg = f"Tried to match '{self.literal}' but got '{tar[pos:pos+self.length]}'"
+            raise ParseError(pos, pos + self.length, msg, self)
         msg = f"Tried to match '{self.literal}' but got EOF"
-        raise ParseError(tar.pos, tar.pos + self.length, msg, self)
+        raise ParseError(pos, pos + self.length, msg, self)
         
 class Regex(Parser):
 
     def __init__(self, rule : str) -> None:
         super().__init__()
-        self.name = 'reg({})'.format(rule)
+        self.name = 'reg(r\'{}\')'.format(rule)
         self.rule = re.compile(rule)
     
-    def run(self, tar : Target) -> Parsed:
-        m = self.rule.match(tar[tar.pos:])
+    def run(self, pos : int, tar : Target):
+        m = self.rule.match(tar[pos:])
         if m is None:
             msg = f"Couldn't match the rule: {self.rule}"
-            raise ParseError(tar.pos, tar.pos, msg, self)
-        return Parsed(self.name, tar.pos, tar.pos + m.end(), m.group())
+            raise ParseError(pos, pos, msg, self)
+        return (pos + m.end(), m.group())
 
 class Sequence(Parser):
 
     def __init__(self, *parsers) -> None:
         super().__init__()
-        self.name = 'sequence()'
         self.parsers = list(parsers)
 
     def __add__(self, other):
         self.parsers.append(other)
         return self
 
-    def run(self, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         data = list()
         for p in self.parsers:
-            result = p.run(tar)
-            tar.pos = result.end
-            data.append(result)
-            
-        return Parsed(self.name, data[0].start, data[-1].end, data) 
+            (pos, res) = p.run(pos, tar)
+            data.append(res)
+        return (pos, data)
 
 class KeepRight(Parser):
 
@@ -166,13 +149,10 @@ class KeepRight(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, tar : Target) -> Parsed:
-        start = tar.pos
+    def run(self, pos : int, tar : Target):
         for p in self.parsers:
-            result = p.run(tar)
-            tar.pos = result.end
-        result.start = start
-        return result
+            (pos, res) = p.run(pos, tar)
+        return (pos, res)
 
 class KeepLeft(Parser):
 
@@ -184,14 +164,11 @@ class KeepLeft(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, tar : Target) -> Parsed:
-        lresult = self.parsers[0].run(tar)
-        tar.pos = lresult.end
+    def run(self, pos : int, tar : Target):
+        (pos, res) = self.parsers[0].run(pos, tar)
         for p in self.parsers[1:]:
-            result = p.run(tar)
-            tar.pos = result.end
-        lresult.end = tar.pos
-        return lresult
+            (pos, _) = p.run(pos, tar)
+        return (pos, res)
 
 class Choice(Parser):
 
@@ -203,61 +180,51 @@ class Choice(Parser):
         self.parsers.append(other)
         return self
 
-    def run(self, tar: Target) -> Parsed:
-        last_pos = tar.pos
+    def run(self, pos : int, tar: Target):
         for p in self.parsers:
             try:
-                result = p.run(tar)
+                return p.run(pos, tar)
             except:
-                tar.pos = last_pos
                 continue
-            tar.pos = result.end
-            return result
             
         msg = "No choice was left"
-        return ParseError(tar.pos, tar.pos, msg, self)
+        raise ParseError(pos, pos, msg, self)
 
 class Many(Parser):
 
     def __init__(self, parser : Parser) -> None:
         super().__init__()
-        self.name = 'many({})'.format(parser)
         self.parser = parser
 
-    def run(self, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         data = list()
         while True:
             try:
-                result = self.parser.run(tar)
+                (pos, res) = self.parser.run(pos, tar)
             except:
                 break
-            data.append(result)
-            tar.pos = result.end
-        return Parsed(self.name, data[0].start, data[-1].end, data)
+            data.append(res)
+        return (pos, data)
 
 class SepBy(Parser):
 
     def __init__(self, tar : Parser, sep : Parser) -> None:
         super().__init__()
-        self.name = 'sepby({},{})'.format(tar,sep)
         self.tar = tar
         self.sep = sep
 
-    def run(self, tar : Target) -> Parsed:
-        result = self.tar.run(tar)
-        data = [result]
-        tar.pos = result.end
+    def run(self, pos : int, tar : Target):
+        (pos, res) = self.tar.run(pos, tar)
+        data = [res]
         while True:
             try:
-                sepres = self.sep.run(tar)
+                (pos, _) = self.sep.run(pos, tar)
             except:
                 break
-            tar.pos = sepres.end
-            result = self.tar.run(tar)
-            data.append(result)
-            tar.pos = result.end
+            (pos, res) = self.tar.run(pos,tar)
+            data.append(res)
             
-        return Parsed(self.name, data[0].start,data[-1].end, data)
+        return (pos, data)
 
 class Lazy(Parser):
 
@@ -265,10 +232,10 @@ class Lazy(Parser):
         super().__init__()
         self._parser = None
     
-    def run(self, tar : Target) -> Parsed:
-        if self._parser == None:
-            raise ParseError(tar.pos, tar.pos, "Lazy Parser was not set!", self)
-        return self._parser.run(tar)
+    def run(self, pos : int, tar : Target):
+        if not self._parser :
+            raise ParseError(pos, pos, "Lazy Parser was not set!", self)
+        return self._parser.run(pos, tar)
 
     @property
     def p(self):
@@ -289,11 +256,11 @@ class Map(Parser):
         self.funcs.append(func)
         return self
 
-    def run(self, tar : Target) -> Parsed:
-        result = self.parser.run(tar)
+    def run(self, pos : int, tar : Target):
+        (pos, res) = self.parser.run(pos, tar)
         for f in self.funcs:
-            result = f(result)
-        return result
+            res = f(res)
+        return (pos, res)
 
 class ErrMap(Parser):
 
@@ -302,9 +269,9 @@ class ErrMap(Parser):
         self.parser = parser
         self.func = func
 
-    def run(self, tar : Target) -> Parsed:
+    def run(self, pos : int, tar : Target):
         try:
-            result = self.parser.run(tar)
+            result = self.parser.run(pos, tar)
         except ParseError as e:
             result = self.func(e)
         return result
