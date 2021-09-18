@@ -3,4 +3,5 @@
 /dist/
 /venv/
 /.tox/
+/testing/
 *.egg-info
