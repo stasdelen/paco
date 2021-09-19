@@ -116,7 +116,7 @@ class Regex(Parser):
         self.rule = re.compile(rule)
     
     def run(self, pos : int, tar : Target):
-        m = self.rule.match(tar[pos:])
+        m = self.rule.match(tar, pos)
         if m is None:
             msg = f"Couldn't match the rule: {self.rule}"
             raise ParseError(pos, pos, msg, self)
