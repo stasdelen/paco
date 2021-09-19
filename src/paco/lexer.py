@@ -1,7 +1,9 @@
 import re
 from typing import NamedTuple
 
-Token = NamedTuple('Token',type=str,data=str,start=int,end=int)
+class Token(NamedTuple('Token',type=str,data=str,start=int,end=int)):
+    def __repr__(self) -> str:
+        return '(t:{}, d:{}, @[{},{}])'.format(self.type, self.data, self.start, self.end)
 
 def lexx(regexes):
     regs = [(n, re.compile(r)) for n,r in regexes]
