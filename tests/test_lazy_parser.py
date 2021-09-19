@@ -1,5 +1,6 @@
 import unittest
-from paco.combinators import (Char, Lazy)
+from paco.combinators import Lazy
+from paco.atomic import Char
 
 class TestLazyParser(unittest.TestCase):
 

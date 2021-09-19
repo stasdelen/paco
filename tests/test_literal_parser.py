@@ -1,5 +1,5 @@
 import unittest
-from paco.combinators import Literal
+from paco.atomic import Literal
 
 class TestLiteralParser(unittest.TestCase):
 

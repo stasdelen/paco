@@ -1,5 +1,5 @@
 import unittest
-from paco.combinators import Regex
+from paco.atomic import Regex
 
 class TestRegexParser(unittest.TestCase):
 

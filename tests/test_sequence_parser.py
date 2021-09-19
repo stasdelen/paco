@@ -1,5 +1,6 @@
 import unittest
-from paco.combinators import (Char, Literal, Regex, Sequence)
+from paco.combinators import Sequence
+from paco.atomic import (Char, Literal, Regex)
 
 class TestSequenceParser(unittest.TestCase):
 

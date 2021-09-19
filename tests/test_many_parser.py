@@ -1,5 +1,6 @@
 import unittest
-from paco.combinators import (Char, Regex, Many)
+from paco.combinators import Many
+from paco.atomic import (Char, Regex)
 
 class TestManyParser(unittest.TestCase):
 

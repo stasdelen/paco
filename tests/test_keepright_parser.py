@@ -1,5 +1,6 @@
 import unittest
-from paco.combinators import (Char, Literal, Regex, KeepRight)
+from paco.combinators import KeepRight
+from paco.atomic import (Char, Literal, Regex)
 
 class TestKeepRightParser(unittest.TestCase):
 

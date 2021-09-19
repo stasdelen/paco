@@ -1,5 +1,6 @@
 import unittest
-from paco.combinators import (Char, Regex, SepBy)
+from paco.combinators import SepBy
+from paco.atomic import (Char, Regex)
 
 class TestSepByParser(unittest.TestCase):
 

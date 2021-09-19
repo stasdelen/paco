@@ -1,5 +1,6 @@
 import unittest
-from paco.combinators import (Char, Literal, Regex, Choice)
+from paco.combinators import Choice
+from paco.atomic import (Char, Literal, Regex)
 
 class TestChoiceParser(unittest.TestCase):
 

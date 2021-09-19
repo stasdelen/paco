@@ -1,5 +1,5 @@
 import unittest
-from paco.combinators import Char
+from paco.atomic import Char
 
 class TestCharParser(unittest.TestCase):
 
