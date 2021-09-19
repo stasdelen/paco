@@ -1,4 +1,5 @@
 import re
+from typing import Iterable
 
 class Parser(object):
 
@@ -22,6 +23,8 @@ class Parser(object):
         return KeepLeft(self, other)
 
     def __call__(self, stream : list, idx = 0):
+        if not isinstance(stream, Iterable):
+            raise TypeError('Stream object should be iterable.')
         try:
             return self.run(idx, stream)
         except ParseError as e:
