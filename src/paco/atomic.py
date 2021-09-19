@@ -60,7 +60,7 @@ class Tok(Parser):
         if len(tar) > pos:
             tok = tar[pos]
             if self.condition(tok):
-                return (pos + 1, tok)
+                return (pos + 1, tok.data)
             msg = 'Expected Token {} but got {}'.format((self.tag,self.data),tok)
             raise ParseError(tok.start, tok.end, msg, self)
         else:
