@@ -120,11 +120,14 @@ class Tok(Parser):
             self.condition = lambda t : (t.type == tag)
     
     def run(self, pos : int, tar : list):
-        tok = tar[pos]
-        if self.condition(tok):
-            return (pos + 1, tok)
-        msg = 'Expected Token was {} but got {}'.format((self.tag,self.data),tok)
-        raise ParseError(tok.start, tok.end, msg, self)
+        if len(tar) > pos:
+            tok = tar[pos]
+            if self.condition(tok):
+                return (pos + 1, tok)
+            msg = 'Expected Token {} but got {}'.format((self.tag,self.data),tok)
+            raise ParseError(tok.start, tok.end, msg, self)
+        else:
+            raise ParseError(pos, pos, 'Got EOF', self)
 
 class Sequence(Parser):
 
