@@ -1,4 +1,4 @@
-from .combinators import (Regex)
+from .atomic import (Regex)
 
 letters = Regex("[a-zA-Z]+")
 letter = Regex("[a-zA-Z]")
