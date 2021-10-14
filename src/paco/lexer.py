@@ -18,6 +18,21 @@ def lexx(regexes):
                     i = res.end()
                     break
             if not res:
-                raise Exception('Unknown token @{}.'.format(i))
+                raise Exception('Unknown token \'{}\' @{}.'.format(text[i], i))
+        return tokens
+    return tokenizer
+
+def lexx2(regexes):
+    namedRules = [('(?P<{}>{})'.format(name, rule) if name else '({})'.format(rule)) for name, rule in regexes]
+    rule = '|'.join(namedRules)
+    r = re.compile(rule)
+    
+    def tokenizer(text):
+        tokens = []
+        for match in r.finditer(text):
+                if match.lastgroup:
+                    tokens.append(Token(match.lastgroup, match.group(), match.start(), match.end()))
+        if tokens[-1].end < len(text):
+                raise Exception('Unrecognized character \'{}\''.format(text[tokens[-1].end]))
         return tokens
     return tokenizer
